@@ -1,0 +1,13 @@
+Pré requisitos:
+- Python 3.5 ou posterior;
+- Gerenciador de pacotes do Python (pip)
+
+Para instalar o gerenciador de pacotes no Ubuntu:
+sudo apt install python3-pip
+
+Para instalar as dependências do script:
+pip3 install -r requirements.txt --user
+
+Para executar o script:
+python3 script.py 000000.dcm
+
