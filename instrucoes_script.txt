@@ -1,6 +1,8 @@
 Pré requisitos:
 - Python 3.5 ou posterior;
-- Gerenciador de pacotes do Python (pip)
+- Gerenciador de pacotes do Python (pip);
+- hbase-1.2.1 ou posterior;
+- couchdb 1.6.0 ou posterior.
 
 Para instalar o gerenciador de pacotes no Ubuntu:
 sudo apt install python3-pip
@@ -8,6 +10,11 @@ sudo apt install python3-pip
 Para instalar as dependências do script:
 pip3 install -r requirements.txt --user
 
+Criar base "dicom" no hbase:
+create 'dicom', 'index', 'imagem'
+
+Criar base "dicom" no couchdb:
+curl -X PUT http://127.0.0.1:5984/dicom
+
 Para executar o script:
 python3 script.py 000000.dcm
-
