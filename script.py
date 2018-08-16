@@ -1,6 +1,7 @@
 import json
 import sys
 
+import couchdb
 import pydicom
 import happybase
 
@@ -19,7 +20,7 @@ def get_dicom_file():
     return dicom_file
 
 
-def dicom_dataset_to_json(dicom_header):
+def dicom_dataset_to_dict(dicom_header):
     dicom_dict = {}
     repr(dicom_header)
     for dicom_value in dicom_header.values():
@@ -27,11 +28,11 @@ def dicom_dataset_to_json(dicom_header):
             # discard pixel data
             continue
         if type(dicom_value.value) == pydicom.dataset.Dataset:
-            dicom_dict[dicom_value.tag] = dicom_dataset_to_json(dicom_value.value)
+            dicom_dict[dicom_value.tag] = dicom_dataset_to_dict(dicom_value.value)
         else:
             v = _convert_value(dicom_value.value)
             dicom_dict[dicom_value.tag] = v
-    return json.dumps(dicom_dict)
+    return dicom_dict
 
 
 def _sanitise_unicode(s):
@@ -65,7 +66,7 @@ def insert_in_hbase(id_image, dicom_dataset):
     dicom_table = connection.table('dicom')
 
     # Converte o dataset dicom em json
-    dicom_dataset_json = dicom_dataset_to_json(dicom_dataset)
+    dicom_dataset_json = json.dumps(dicom_dataset)
 
     # Insere a imagem
     dicom_table.put(id_image, {b'imagem:': dicom_dataset_json})
@@ -82,8 +83,30 @@ if __name__ == '__main__':
     # Busca o id da imagem para inserir no HBase e no couchDb
     id_image = dicom_dataset.SOPInstanceUID
 
+    # Recupera o dataset como dict
+    dicom_dataset_dict = dicom_dataset_to_dict(dicom_dataset)
+
     # Insere no hbase
-    insert_in_hbase(id_image, dicom_dataset)
+    insert_in_hbase(id_image, dicom_dataset_dict)
 
     # Insere no couchdb
-    # TODO
+    couch = couchdb.Server()
+
+    dicom_db = 'dicom'
+
+    db = couch[dicom_db]
+
+    if not db:
+        db = couch.create(dicom_db)
+
+    doc = {'id': id_image,
+           'idPaciente': dicom_dataset.PatientID,
+           'nomePaciente': dicom_dataset.PatientName,
+           'exames': []}
+
+    db.save(doc)
+
+
+
+
+
