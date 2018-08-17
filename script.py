@@ -59,36 +59,24 @@ def _convert_value(v):
     return cv
 
 
-def insert_in_hbase(id_image, dicom_dataset):
+def insert_in_hbase(dicom_dataset):
     connection = happybase.Connection("localhost")
 
-    # Conecta a tabela dicom
     dicom_table = connection.table('dicom')
 
-    # Converte o dataset dicom em json
-    dicom_dataset_json = json.dumps(dicom_dataset)
+    rowkey = dicom_dataset.StudyInstanceUID
 
-    # Insere a imagem
-    dicom_table.put(id_image, {b'imagem:': dicom_dataset_json})
+    dicom_dict = dicom_dataset_to_dict(dicom_dataset)
+    dicom_dataset_json = json.dumps(dicom_dict)
 
+
+    dicom_table.put(rowkey, {b'serie:serieInstanceUid': dicom_dataset.StudyInstanceUID,
+                             b'serie:sopInstanceUid': dicom_dataset.SOPInstanceUID,
+                             b'serie:content': dicom_dataset_json})
     connection.close()
 
 
-if __name__ == '__main__':
-    dicom_file = get_dicom_file()
-
-    # Extrai o dataset do arquivo dcm
-    dicom_dataset = pydicom.dcmread(dicom_file)
-
-    # Busca o id da imagem para inserir no HBase e no couchDb
-    id_image = dicom_dataset.SOPInstanceUID
-
-    # Recupera o dataset como dict
-    dicom_dataset_dict = dicom_dataset_to_dict(dicom_dataset)
-
-    # Insere no hbase
-    insert_in_hbase(id_image, dicom_dataset_dict)
-
+def insert_couchDb(dicom_dataset):
     # Insere no couchdb
     couch = couchdb.Server()
 
@@ -105,6 +93,23 @@ if __name__ == '__main__':
            'exames': []}
 
     db.save(doc)
+
+
+if __name__ == '__main__':
+    dicom_file = get_dicom_file()
+
+    # Extrai o dataset do arquivo dcm
+    dicom_dataset = pydicom.dcmread(dicom_file)
+
+    # Recupera o dataset como dict
+    #dicom_dataset_dict = dicom_dataset_to_dict(dicom_dataset)
+
+    # Insere no hbase
+    insert_in_hbase(dicom_dataset)
+
+    #insert_couchDb(dicom_dataset)
+
+
 
 
 

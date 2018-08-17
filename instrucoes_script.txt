@@ -11,7 +11,15 @@ Para instalar as dependências do script:
 pip3 install -r requirements.txt --user
 
 Criar base "dicom" no hbase:
-create 'dicom', 'index', 'imagem'
+-- create 'dicom', 'index', 'imagem'
+
+-- Creating a table with a single column family called 'serie'
+create 'dicom', 'series'
+
+--final structure:
+    rowkey, {'serie:serieInstanceUid': dicom_dataset.StudyInstanceUID,
+             'serie:sopInstanceUid': dicom_dataset.SOPInstanceUID,
+             'serie:content': dicom_or_binary_content})
 
 Criar base "dicom" no couchdb:
 curl -X PUT http://127.0.0.1:5984/dicom
