@@ -10,13 +10,13 @@ sudo apt install python3-pip
 Para instalar as dependências do script:
 pip3 install -r requirements.txt --user
 
--- Creating a table with a single column family called 'serie'
-create 'dicom', 'serie'
+-- Creating a table with a single column family called 'series'
+create 'dicom', 'series'
 
 --final structure:
-    rowkey, {'serie:serieInstanceUid': dicom_dataset.StudyInstanceUID,
-             'serie:sopInstanceUid': dicom_dataset.SOPInstanceUID,
-             'serie:content': dicom_or_binary_content})
+    rowkey, {'series:seriesInstanceUid': dicom_dataset.SeriesInstanceUID,
+             'series:sopInstanceUid': dicom_dataset.SOPInstanceUID,
+             'series:content': dicom_or_binary_content})
 
 retrieve example:
 
