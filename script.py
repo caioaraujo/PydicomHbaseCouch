@@ -5,14 +5,7 @@ import sys
 import couchdb
 import pydicom
 import happybase
-
-
-def get_dicom_file(file):
-
-    if not file:
-        print('File {} not found'.format(file))
-
-    return file
+from thriftpy.transport import TTransportException
 
 
 def dicom_dataset_to_dict(dicom_header):
@@ -54,8 +47,37 @@ def _convert_value(v):
     return cv
 
 
+def __create_dicom_table_in_hbase():
+
+    try:
+        connection = happybase.Connection("localhost")
+    except TTransportException as e:
+        raise Exception(f'Could not connect to hbase via thrift: {e.message}')
+
+    connection.open()
+
+    if b'dicom' in connection.tables():
+        connection.close()
+        return
+
+    print('Creating dicom table in hbase')
+
+    connection.create_table(
+        'dicom',
+        {'series': dict()}
+    )
+
+    connection.close()
+
+
 def insert_in_hbase(rowkey, column_family, data):
-    connection = happybase.Connection("localhost")
+
+    try:
+        connection = happybase.Connection("localhost")
+    except TTransportException as e:
+        raise Exception(f'Could not connect to thrift: {e.message}')
+
+    connection.open()
 
     dicom_table = connection.table('dicom')
 
@@ -64,8 +86,7 @@ def insert_in_hbase(rowkey, column_family, data):
     connection.close()
 
 
-def insert_couchDb(dicom_dataset):
-    # Insere no couchdb
+def insert_in_couchdb(dicom_dataset):
     couch = couchdb.Server()
 
     dicom_db = 'dicom'
@@ -105,17 +126,25 @@ def __define_column_family(dicom_dataset):
 
 if __name__ == '__main__':
 
+    __create_dicom_table_in_hbase()
+
     root = __validate_dir(sys.argv[1])
 
     print("Root dir:", root)
 
     for path, subdirs, files in os.walk(root):
         for name in files:
+
             file = os.path.join(path, name)
+
+            file_extension = name.split('.')[-1]
+            if file_extension.lower() != 'dcm':
+                print('Ignoring file:', file)
+                continue
+
             print('Working in file:', file)
 
-            dicom_file = get_dicom_file(file)
-            dicom_dataset = pydicom.dcmread(dicom_file)
+            dicom_dataset = pydicom.dcmread(file)
 
             dicom_dataset_dict = dicom_dataset_to_dict(dicom_dataset)
 
@@ -123,7 +152,7 @@ if __name__ == '__main__':
 
             insert_in_hbase(rowkey, column_family, json.dumps(dicom_dataset_dict))
 
-            #insert_couchDb(dicom_dataset)
+            #insert_in_couchdb(dicom_dataset)
 
 
 
