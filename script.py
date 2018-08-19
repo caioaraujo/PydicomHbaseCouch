@@ -21,7 +21,7 @@ def __extract_dataset_to_dict(dicom_dict, dicom_dataset, file_data):
     if not dicom_dataset.SeriesInstanceUID in dicom_dict:
         dicom_dict[dicom_dataset.SeriesInstanceUID] = []
 
-    data_instance = dict({'sopInstanceUid': dicom_dataset.SOPInstanceUID, 'data': file_data})
+    data_instance = dict({'sop_instance_uid': dicom_dataset.SOPInstanceUID, 'data': file_data})
     dicom_dict.get(dicom_dataset.SeriesInstanceUID).append(data_instance)
 
     return dicom_dict[dicom_dataset.SeriesInstanceUID]
@@ -151,10 +151,7 @@ if __name__ == '__main__':
 
             dicom_dataset = pydicom.dcmread(file)
 
-            #compressed_file = base64.b16encode(dicom_dataset.pixel_array)
-            compressed_file = "teste"
-
-            dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, compressed_file)
+            dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, file)
 
             rowkey, column_family = __define_column_family(dicom_dataset)
 
