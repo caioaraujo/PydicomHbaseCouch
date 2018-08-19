@@ -160,11 +160,4 @@ if __name__ == '__main__':
 
             insert_in_hbase(rowkey, column_family, json.dumps(dicom_dataset_dict))
 
-            #insert_in_couchdb(dicom_dataset)
-
-
-
-
-
-
-
+            insert_in_couchdb(dicom_dataset)
