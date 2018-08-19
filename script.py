@@ -18,7 +18,7 @@ def get_dicom_file(file):
 
 def __extract_dataset_to_dict(dicom_dict, dicom_dataset, file_data):
 
-    if not dicom_dataset.SeriesInstanceUID in dicom_dict:
+    if dicom_dataset.SeriesInstanceUID not in dicom_dict:
         dicom_dict[dicom_dataset.SeriesInstanceUID] = []
 
     data_instance = dict({'sop_instance_uid': dicom_dataset.SOPInstanceUID, 'data': file_data})
@@ -90,22 +90,78 @@ def insert_in_hbase(rowkey, column_family, data):
     connection.close()
 
 
-def insert_in_couchdb(dicom_dataset):
+def insert_in_couchdb(key, dicom_dataset):
     couch = couchdb.Server()
 
     dicom_db = 'dicom'
 
-    db = couch[dicom_db]
-
-    if not db:
+    try:
+        db = couch[dicom_db]
+    except couchdb.ResourceNotFound:
+        print("Nao encontrou o banco no couchdb. Tentando criar")
         db = couch.create(dicom_db)
 
-    doc = {'id': "",
-           'idPaciente': dicom_dataset.PatientID,
-           'nomePaciente': dicom_dataset.PatientName,
-           'exames': []}
+    # Estrutura 1 - Documento do paciente com seus exames
 
-    db.save(doc)
+    id_paciente = dicom_dataset.PatientID
+    id_exame = dicom_dataset.StudyInstanceUID
+    data_exame = dicom_dataset.StudyDate
+    data_ano_exame = data_exame[0:4]
+    dados_exame = {'id': id_exame, 'data': data_exame, 'ano': data_ano_exame}
+
+    # busca o documento pelo id do paciente
+    documento_paciente = db.get(id_paciente)
+
+    if documento_paciente:
+        exames = documento_paciente['exames']
+
+        # Verifica se ja existe o exame no documento do paciente
+        exame_existe = list(filter(lambda x:x['id'] == id_exame, exames))
+
+        if not exame_existe:
+            exames.append(dados_exame)
+
+    else:
+        # Cria um novo documento para o paciente
+        documento_paciente = {'_id': id_paciente,  # Id do paciente como chave do documento
+                              'tipoDocumento': "EXAMES_PACIENTE",
+                              'nomePaciente': str(dicom_dataset.PatientName),
+                              'exames': [dados_exame]}
+
+    db.save(documento_paciente)
+
+    # Estrutura 2 - Documento com dados do exame
+
+    peak_voltage = None
+    if hasattr(dicom_dataset, 'KVP'):
+        peak_voltage = dicom_dataset.KVP
+
+    exposure_time = None
+    if hasattr(dicom_dataset, 'ExposureTime'):
+        exposure_time = dicom_dataset.ExposureTime
+
+    tube_current = None
+    if hasattr(dicom_dataset, 'XRayTubeCurrent'):
+        tube_current = dicom_dataset.XRayTubeCurrent
+
+    relative_xray_exposure = None
+    if hasattr(dicom_dataset, 'RelativeXRayExposure'):
+        relative_xray_exposure = dicom_dataset.RelativeXRayExposure
+
+    detalhe_exame = {'peakVoltage': peak_voltage, 'exposureTime': exposure_time, 'tubeCurrent': tube_current,
+                     'relativeXrayExposure': relative_xray_exposure}
+
+    # busca o documento pelo id do exame
+    documento_exame = db.get(id_exame)
+
+    if not documento_exame:
+
+        # Cria o documento com os detalhes do exame
+        documento_exame = {'_id': id_exame,  # Id do exame como chave do documento
+                           'tipoDocumento': "DETALHES_EXAME",
+                           **detalhe_exame}
+
+        db.save(documento_exame)
 
 
 def __validate_dir(path):
@@ -157,4 +213,4 @@ if __name__ == '__main__':
 
             insert_in_hbase(rowkey, column_family, json.dumps(dicom_dataset_dict))
 
-            insert_in_couchdb(dicom_dataset)
+            insert_in_couchdb(rowkey, dicom_dataset)
