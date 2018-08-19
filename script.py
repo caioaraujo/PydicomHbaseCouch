@@ -1,10 +1,11 @@
+import base64
 import json
 import os
 import sys
 
 import couchdb
-import pydicom
 import happybase
+import pydicom
 
 
 def get_dicom_file(file):
@@ -15,19 +16,15 @@ def get_dicom_file(file):
     return file
 
 
-def dicom_dataset_to_dict(dicom_header):
-    dicom_dict = {}
-    repr(dicom_header)
-    for dicom_value in dicom_header.values():
-        if dicom_value.tag == (0x7fe0, 0x0010):
-            # discard pixel data
-            continue
-        if type(dicom_value.value) == pydicom.dataset.Dataset:
-            dicom_dict[dicom_value.tag] = dicom_dataset_to_dict(dicom_value.value)
-        else:
-            v = _convert_value(dicom_value.value)
-            dicom_dict[dicom_value.tag] = v
-    return dicom_dict
+def __extract_dataset_to_dict(dicom_dict, dicom_dataset, file_data):
+
+    if not dicom_dataset.SeriesInstanceUID in dicom_dict:
+        dicom_dict[dicom_dataset.SeriesInstanceUID] = []
+
+    data_instance = dict({'sopInstanceUid': dicom_dataset.SOPInstanceUID, 'data': file_data})
+    dicom_dict.get(dicom_dataset.SeriesInstanceUID).append(data_instance)
+
+    return dicom_dict[dicom_dataset.SeriesInstanceUID]
 
 
 def _sanitise_unicode(s):
@@ -109,6 +106,8 @@ if __name__ == '__main__':
 
     print("Root dir:", root)
 
+    dicom_dict = dict({})
+
     for path, subdirs, files in os.walk(root):
         for name in files:
             file = os.path.join(path, name)
@@ -117,7 +116,10 @@ if __name__ == '__main__':
             dicom_file = get_dicom_file(file)
             dicom_dataset = pydicom.dcmread(dicom_file)
 
-            dicom_dataset_dict = dicom_dataset_to_dict(dicom_dataset)
+            #compressed_file = base64.b16encode(dicom_dataset.pixel_array)
+            compressed_file = "teste"
+
+            dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, compressed_file)
 
             rowkey, column_family = __define_column_family(dicom_dataset)
 
