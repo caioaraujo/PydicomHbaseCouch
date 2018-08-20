@@ -6,7 +6,6 @@ import sys
 import couchdb
 import happybase
 import pydicom
-from pydicom.filebase import DicomBytesIO
 from thriftpy.transport import TTransportException
 
 
@@ -207,17 +206,14 @@ if __name__ == '__main__':
 
             print('Working in file:', file)
 
-            with open(file, 'rb') as fp:
-                raw = DicomBytesIO(fp.read())
+            dicom_dataset = pydicom.dcmread(file)
 
-                dicom_dataset = pydicom.dcmread(raw)
+            compressed_pixel_array = sys.stdout.buffer.write(base64.b64encode(dicom_dataset.pixel_array))
 
-                compressed = sys.stdout.buffer.write(base64.b64encode(dicom_dataset.pixel_array.tobytes()))
+            dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, compressed_pixel_array)
 
-                dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, compressed)
+            rowkey, column_family = __define_column_family(dicom_dataset)
 
-                rowkey, column_family = __define_column_family(dicom_dataset)
+            insert_in_hbase(rowkey, column_family, json.dumps(dicom_dataset_dict))
 
-                insert_in_hbase(rowkey, column_family, json.dumps(dicom_dataset_dict))
-
-                insert_in_couchdb(rowkey, dicom_dataset)
+            insert_in_couchdb(rowkey, dicom_dataset)
