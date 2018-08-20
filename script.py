@@ -1,10 +1,11 @@
+import base64
 import json
 import os
 import sys
 
 import couchdb
-import pydicom
 import happybase
+import pydicom
 from thriftpy.transport import TTransportException
 
 
@@ -207,7 +208,9 @@ if __name__ == '__main__':
 
             dicom_dataset = pydicom.dcmread(file)
 
-            dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, file)
+            compressed_pixel_array = sys.stdout.buffer.write(base64.b64encode(dicom_dataset.pixel_array))
+
+            dicom_dataset_dict = __extract_dataset_to_dict(dicom_dict, dicom_dataset, compressed_pixel_array)
 
             rowkey, column_family = __define_column_family(dicom_dataset)
 
