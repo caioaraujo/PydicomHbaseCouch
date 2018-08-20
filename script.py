@@ -104,6 +104,8 @@ def insert_in_couchdb(key, dicom_dataset):
     # Estrutura 1 - Documento do paciente com seus exames
 
     id_paciente = dicom_dataset.PatientID
+    nome_paciente = str(dicom_dataset.PatientName)
+
     id_exame = dicom_dataset.StudyInstanceUID
     data_exame = dicom_dataset.StudyDate
     data_ano_exame = data_exame[0:4]
@@ -116,52 +118,119 @@ def insert_in_couchdb(key, dicom_dataset):
         exames = documento_paciente['exames']
 
         # Verifica se ja existe o exame no documento do paciente
-        exame_existe = list(filter(lambda x:x['id'] == id_exame, exames))
+        exame = list(filter(lambda x: x['id'] == id_exame, exames))
 
-        if not exame_existe:
+        if not exame:
+
+            # Se o exame ainda nao ta cadastrado para o paciente, cria com as informacoes iniciais
+            dados_exame['series'] = []
             exames.append(dados_exame)
+        else:
+            exame = exame[0]
+
+            series = exame['series']
+
+            id_serie = dicom_dataset.SeriesInstanceUID
+
+            # Verifica se a serie ja existe no exame
+            serie = list(filter(lambda x: x['id'] == id_serie, series))
+
+            if not serie:
+                desc_serie = dicom_dataset.SeriesDescription
+                series.append({'id': id_serie, 'descricaoSerie': desc_serie})
+            else:
+                serie = serie[0]
+
+                imagens = serie['imagens']
+
+                id_imagem = dicom_dataset.SOPInstanceUID
+
+                # Verifica se existe a imagem dentro da serie
+                imagem = list(filter(lambda x: x['id'] == id_imagem, imagens))
+
+                if not imagem:
+
+                    peak_voltage = None
+                    if hasattr(dicom_dataset, 'KVP'):
+                        peak_voltage = dicom_dataset.KVP
+
+                    exposure_time = None
+                    if hasattr(dicom_dataset, 'ExposureTime'):
+                        exposure_time = dicom_dataset.ExposureTime
+
+                    tube_current = None
+                    if hasattr(dicom_dataset, 'XRayTubeCurrent'):
+                        tube_current = dicom_dataset.XRayTubeCurrent
+
+                    relative_xray_exposure = None
+                    if hasattr(dicom_dataset, 'RelativeXRayExposure'):
+                        relative_xray_exposure = dicom_dataset.RelativeXRayExposure
+
+                    ct_exposure_sequence_group = None
+                    if hasattr(dicom_dataset, 'ExposureSequence'):
+                        ct_exposure_sequence_group = dicom_dataset.ExposureSequence
+
+                    ct_dose_index = None
+                    if hasattr(dicom_dataset, 'ExposureIndex'):
+                        ct_dose_index = dicom_dataset.ExposureIndex
+
+                    imagem = {'id': id_imagem, 'peakVoltage': peak_voltage, 'exposureTime': exposure_time,
+                              'tubeCurrent': tube_current, 'relativeXrayExposure': relative_xray_exposure,
+                              'ctExposureSequenceGroup': ct_exposure_sequence_group, 'ctDoseIndex': ct_dose_index}
+
+                    imagens.append(imagem)
 
     else:
         # Cria um novo documento para o paciente
         documento_paciente = {'_id': id_paciente,  # Id do paciente como chave do documento
                               'tipoDocumento': "EXAMES_PACIENTE",
-                              'nomePaciente': str(dicom_dataset.PatientName),
+                              'nomePaciente': nome_paciente,
                               'exames': [dados_exame]}
 
     db.save(documento_paciente)
 
     # Estrutura 2 - Documento com dados do exame
 
-    peak_voltage = None
-    if hasattr(dicom_dataset, 'KVP'):
-        peak_voltage = dicom_dataset.KVP
-
-    exposure_time = None
-    if hasattr(dicom_dataset, 'ExposureTime'):
-        exposure_time = dicom_dataset.ExposureTime
-
-    tube_current = None
-    if hasattr(dicom_dataset, 'XRayTubeCurrent'):
-        tube_current = dicom_dataset.XRayTubeCurrent
-
-    relative_xray_exposure = None
-    if hasattr(dicom_dataset, 'RelativeXRayExposure'):
-        relative_xray_exposure = dicom_dataset.RelativeXRayExposure
-
-    detalhe_exame = {'peakVoltage': peak_voltage, 'exposureTime': exposure_time, 'tubeCurrent': tube_current,
-                     'relativeXrayExposure': relative_xray_exposure}
-
-    # busca o documento pelo id do exame
-    documento_exame = db.get(id_exame)
-
-    if not documento_exame:
-
-        # Cria o documento com os detalhes do exame
-        documento_exame = {'_id': id_exame,  # Id do exame como chave do documento
-                           'tipoDocumento': "DETALHES_EXAME",
-                           **detalhe_exame}
-
-        db.save(documento_exame)
+    # peak_voltage = None
+    # if hasattr(dicom_dataset, 'KVP'):
+    #     peak_voltage = dicom_dataset.KVP
+    #
+    # exposure_time = None
+    # if hasattr(dicom_dataset, 'ExposureTime'):
+    #     exposure_time = dicom_dataset.ExposureTime
+    #
+    # tube_current = None
+    # if hasattr(dicom_dataset, 'XRayTubeCurrent'):
+    #     tube_current = dicom_dataset.XRayTubeCurrent
+    #
+    # relative_xray_exposure = None
+    # if hasattr(dicom_dataset, 'RelativeXRayExposure'):
+    #     relative_xray_exposure = dicom_dataset.RelativeXRayExposure
+    #
+    # ct_exposure_sequence_group = None
+    # if hasattr(dicom_dataset, 'ExposureSequence'):
+    #     ct_exposure_sequence_group = dicom_dataset.ExposureSequence
+    #
+    # ct_dose_index = None
+    # if hasattr(dicom_dataset, 'ExposureIndex'):
+    #     ct_dose_index = dicom_dataset.ExposureIndex
+    #
+    # detalhe_exame = {'peakVoltage': peak_voltage, 'exposureTime': exposure_time, 'tubeCurrent': tube_current,
+    #                  'relativeXrayExposure': relative_xray_exposure,
+    #                  'ctExposureSequenceGroup': ct_exposure_sequence_group,
+    #                  'ctDoseIndex': ct_dose_index}
+    #
+    # # busca o documento pelo id do exame
+    # documento_exame = db.get(id_exame)
+    #
+    # if not documento_exame:
+    #
+    #     # Cria o documento com os detalhes do exame
+    #     documento_exame = {'_id': id_exame,  # Id do exame como chave do documento
+    #                        'tipoDocumento': "DETALHES_EXAME",
+    #                        **detalhe_exame}
+    #
+    #     db.save(documento_exame)
 
 
 def __validate_dir(path):
