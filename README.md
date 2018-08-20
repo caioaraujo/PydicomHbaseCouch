@@ -15,6 +15,8 @@ Obs: Para instalar o gerenciador de pacotes no Ubuntu:
 ```pip3 install -r requirements.txt --user```
 
 ## Execução
-Para executar o script:
+- Iniciar o SGBD: $HBASE_HOME/bin/start-hbase.sh
+- Iniciar o thrift: $HBASE_HOME/bin/thrift start
+- Executar o script passando o diretrio raiz dos arquivos dicom:
 
 ```python3 script.py "caminho/pasta/raiz/arquivos/dicom"```
